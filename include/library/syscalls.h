@@ -14,6 +14,9 @@ void syscall_debug(const char *str);
 
 /* Syscalls that manipulate this process and its children. */
 
+int syscall_make_named_pipe(const char *pathname, const char* filename);
+int syscall_open_named_pipe(const char *pathname, const char* filename);
+void syscall_process_wakeup();
 void syscall_process_exit(int status);
 int syscall_process_yield();
 int syscall_process_run(int fd, int argc, const char **argv);

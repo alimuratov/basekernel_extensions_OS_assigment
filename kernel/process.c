@@ -22,6 +22,7 @@ See the file LICENSE for details.
 struct process *current = 0;
 struct list ready_list = { 0, 0 };
 struct list grave_list = { 0, 0 };
+struct list waiting_list = { 0, 0};
 struct list grave_watcher_list = { 0, 0 };	// parent processes are put here to wait for their children
 struct process *process_table[PROCESS_MAX_PID] = { 0 };
 
@@ -190,10 +191,16 @@ void process_stack_reset(struct process *p, unsigned size)
 
 struct process *process_create()
 {
+	return process_create_with_priority(0);
+}
+
+/* Creates a process and assigns a priority passed as an argument */
+struct process *process_create_with_priority(int pr)
+{
 	struct process *p;
 
 	p = page_alloc(1);
-
+	
 	p->pid = process_allocate_pid();
 	process_table[p->pid] = p;
 
@@ -217,11 +224,13 @@ struct process *process_create()
 	for(i = 0; i < PROCESS_MAX_OBJECTS; i++) {
 		p->ktable[i] = 0;
 	}
-
+	
 	p->state = PROCESS_STATE_READY;
-
+	p->priority = pr;
+	
 	return p;
 }
+
 
 void process_delete(struct process *p)
 {
@@ -237,9 +246,12 @@ void process_delete(struct process *p)
 	process_table[p->pid] = 0;
 }
 
+/* Pushes the process to the ready list */
 void process_launch(struct process *p)
 {
-	list_push_tail(&ready_list, &p->node);
+	//printf("list_size: %d\n", list_size(&ready_list));
+	list_push_head(&ready_list, &p->node); // change
+	//printf("priority: %d\n", p->priority);
 }
 
 static void process_switch(int newstate)
@@ -262,10 +274,10 @@ static void process_switch(int newstate)
 		current->state = newstate;
 
 		if(newstate == PROCESS_STATE_READY) {
-			list_push_tail(&ready_list, &current->node);
+			list_push_priority(&ready_list, &current->node, current->priority);
 		}
 		if(newstate == PROCESS_STATE_GRAVE) {
-			list_push_tail(&grave_list, &current->node);
+			list_push_priority(&grave_list, &current->node, current->priority);
 		}
 	}
 
@@ -329,6 +341,14 @@ void process_wait(struct list *q)
 	process_switch(PROCESS_STATE_BLOCKED);
 }
 
+/* Pushes process to the waiting list according to process's priority */
+void process_wait_p(struct process *p)
+{
+	// printf("Process's priority: %d, Head's priority: %d\n", p->priority, (&waiting_list)->head->priority);
+	p->state = PROCESS_STATE_BLOCKED;
+	list_push_priority(&waiting_list, &p->node, p->priority); 
+}
+
 void process_wakeup(struct list *q)
 {
 	struct process *p;
@@ -336,6 +356,17 @@ void process_wakeup(struct list *q)
 	if(p) {
 		p->state = PROCESS_STATE_READY;
 		list_push_tail(&ready_list, &p->node);
+	}
+}
+
+/* Pops the process from the waiting list and pushes it to the ready list */
+void process_wakeup_waiting() {
+	struct process *p;
+	p = (struct process *) list_pop_head(&waiting_list);
+	if(p) {
+		// printf("Priority: %d\n", p->priority);
+		p->state = PROCESS_STATE_READY;
+		list_push_head(&ready_list, &p->node);
 	}
 }
 

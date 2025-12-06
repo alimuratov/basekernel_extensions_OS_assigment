@@ -260,7 +260,12 @@ int fs_dirent_read(struct fs_dirent *d, char *buffer, uint32_t length, uint32_t 
 	if(offset > d->size) {
 		return 0;
 	}
-
+	
+	// length (size of the buffer) = 20;
+	// offset = 12
+	// dsize = 12
+	// offset + length = 32 > 12
+	// length = 12 - 12 = 0
 	if(offset + length > d->size) {
 		length = d->size - offset;
 	}
@@ -269,9 +274,12 @@ int fs_dirent_read(struct fs_dirent *d, char *buffer, uint32_t length, uint32_t 
 	if(!temp)
 		return -1;
 
+	//printf("length is: %d\n", length);
+
 	while(length > 0) {
 
 		int blocknum = offset / bs;
+		//printf("  blocknum is: %d\n", blocknum);
 		int actual = 0;
 
 		if(offset % bs) {
@@ -279,6 +287,7 @@ int fs_dirent_read(struct fs_dirent *d, char *buffer, uint32_t length, uint32_t 
 			if(actual != bs)
 				goto failure;
 			actual = MIN(bs - offset % bs, length);
+			//printf("temp is: %s\n", temp);
 			memcpy(buffer, &temp[offset % bs], actual);
 		} else if(length >= bs) {
 			actual = ops->read_block(d, buffer, blocknum);
@@ -289,15 +298,16 @@ int fs_dirent_read(struct fs_dirent *d, char *buffer, uint32_t length, uint32_t 
 			if(actual != bs)
 				goto failure;
 			actual = length;
+			//printf("temp is: %s\n", temp);
 			memcpy(buffer, temp, actual);
 		}
-
 		buffer += actual;
 		length -= actual;
 		offset += actual;
 		total += actual;
 	}
-
+	//printf("temp is: %s\n", temp);
+	//printf("buffer after temp is: %s\n", buffer_start);
 	page_free(temp);
 	return total;
 

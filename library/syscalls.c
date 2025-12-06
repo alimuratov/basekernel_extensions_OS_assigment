@@ -8,6 +8,18 @@ See the file LICENSE for details.
 #include "kernel/stats.h"
 #include "kernel/gfxstream.h"
 
+int syscall_open_named_pipe(const char *pathname, const char* filename) {
+	return syscall(SYSCALL_OPEN_NAMED_PIPE, (uint32_t) pathname, (uint32_t) filename, 0, 0, 0);
+}
+
+int syscall_make_named_pipe(const char *pathname, const char* filename) {
+	return syscall(SYSCALL_MAKE_NAMED_PIPE, (uint32_t) pathname, (uint32_t) filename, 0, 0, 0);
+}
+
+void syscall_process_wakeup() {
+	syscall(SYSCALL_PROCESS_WAKEUP, 0, 0, 0, 0, 0);
+}
+
 void syscall_debug(const char *str)
 {
 	syscall(SYSCALL_DEBUG, (uint32_t) str, 0, 0, 0, 0);

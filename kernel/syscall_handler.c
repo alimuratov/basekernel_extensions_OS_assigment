@@ -28,6 +28,8 @@ See the file LICENSE for details.
 #include "window.h"
 #include "is_valid.h"
 #include "bcache.h"
+#include "library/pipenode.h"
+#include "named_pipe.c"
 
 /*
 syscall_handler() is responsible for decoding system calls
@@ -49,6 +51,8 @@ For all of these system calls, a return value of zero or
 greater indiciates success, and return of less than zero
 indicates an error and the reason.
 */
+
+// static node pipenodes[MAX_NODES];
 
 int sys_debug(const char *str)
 {
@@ -93,12 +97,95 @@ static void argv_delete(int argc, char **argv)
 	kfree(argv);
 }
 
-/*
-process_run() creates a child process in a more efficient
-way than fork/exec by creating the child without duplicating
-the memory state, then loading
-*/
+/* Creates a file at the specified path (creates the folder specified in "pathname" if it does not exist) */
+int sys_make_named_pipe(const char *pathname, const char *filename) {
+	// printf("Creating a file\n");
+	// if(!fs_dirent_mkfile(fs_resolve(pathname), filename)) printf("File not created\n");
 
+	/* Creating a file named "filename" in the directory specified by "pathname "*/
+	struct fs_dirent* res = fs_resolve(pathname);
+	/* if specified folder exists*/
+	if(res) {
+		if(fs_dirent_mkfile(res, filename)) return 1;
+		else return -1;
+	} else { /* if specified folder does not exists */
+		struct fs_dirent* res2 = fs_dirent_mkdir(fs_getcurrent(current), pathname);
+		if(fs_dirent_mkfile(res2, filename)) return 1;
+		else return -1;
+	}
+	/* if (fs_dirent_mkfile(fs_resolve(pathname), filename)) return 1;
+	else return -1; */
+}
+
+/* Function to concatenate pathname and filename */
+char *concatenate_chars(const char *str1, const char *str2) {
+	int extraSlash = 0;
+	if (str1[strlen(str1) - 1] != '/') {
+		extraSlash = 1;
+	}
+	int length = strlen(str1) + strlen(str2) + 1 + extraSlash;
+	char *result = kmalloc(length);
+
+	if (!result) {
+		kfree(result);
+		return 'error'; // error
+	}
+
+	strcpy(result, str1);
+
+	if (extraSlash) strcat(result, "/");
+
+	strcat(result, str2);
+
+	return result;
+}
+
+/* Retrieves kernel object corresponding to the file specified by the pathname and filename */
+int sys_open_named_pipe(const char *pathname, const char* filename) {
+	// Check if a named pipe is already within the current ktable
+	// printf("Searching for named pipe's kobject\n");
+
+	/* Searching if the file already exists in the local kernel table */
+	for (int i = 0; i < PROCESS_MAX_OBJECTS; i++) {
+		/* For every kobject whose type is NAMED_PIPE, check if it is the one we are searching for by comparing filenames */
+		if (current->ktable[i]->type == KOBJECT_NAMED_PIPE && strcmp(current->ktable[i]->data.named_pipe->fname,filename) == 0) {
+			/* If the filename of the named_pipe matches with the filename we are seraching for, return i (which is file descriptor) */
+			return i;
+		}
+	}
+	// printf("Named pipe's kobject not found, creating kobject...\n");
+
+	/* If the named_pipe does not exist in the local kernel table, then retrieve the file from the filesystem */
+	struct fs_dirent *file = fs_resolve(concatenate_chars(pathname, filename));
+
+	// if (file) printf("Retrieved the file\n");
+	// else printf("File not retrieved\n");
+
+	/* Create named_pipe struct, and put reference for the file inside the named_pipe */
+	struct named_pipe *p = named_pipe_create(file, filename);
+	// if (p) printf("Pipe created\n");
+
+	/* Find available spot in the local kernel for the named_pipe we just created */
+	int fd = process_available_fd(current);
+	if (fd < 0) return -1;
+	/* Create kobject for the named pipe and put it inside kernel table */
+	current->ktable[fd] = kobject_create_named_pipe(p);
+	return fd;
+}
+
+/* Converts string to integer */
+int katoi(const char *str) {
+    int result = 0;
+
+    while (*str) {
+        result = result * 10 + (*str - '0');
+        str++;
+    }
+
+    return result;
+}
+
+/* Createes a process and pushes to the correct list */
 int sys_process_run( int fd, int argc, const char **argv)
 {
 	if(!is_valid_object_type(fd,KOBJECT_FILE)) return KERROR_INVALID_OBJECT;
@@ -107,9 +194,12 @@ int sys_process_run( int fd, int argc, const char **argv)
 
 	/* Copy argv into kernel memory. */
 	char **copy_argv = argv_copy(argc, argv);
+	
+	//xxx
+	int priority = katoi(copy_argv[1]);
 
 	/* Create the child process */
-	struct process *p = process_create();
+	struct process *p = process_create_with_priority(priority);
 	process_inherit(current, p);
 
 	/* SWITCH TO ADDRESS SPACE OF CHILD PROCESS */
@@ -143,8 +233,18 @@ int sys_process_run( int fd, int argc, const char **argv)
 	}
 
 	/* Otherwise, launch the new child process. */
-	process_launch(p);
+	if (argc > 1) {
+		process_wait_p(p);
+	} else {
+		process_launch(p);
+	}
 	return p->pid;
+}
+
+int sys_process_wakeup() 
+{
+	process_wakeup_waiting();
+	return 0;
 }
 
 /* Function creates a child process with the standard window replaced by wd */
@@ -425,21 +525,27 @@ int sys_object_copy( int src, int dst )
 	return src;
 }
 
+
 int sys_object_read(int fd, void *data, int length, kernel_io_flags_t flags )
 {
 	if(!is_valid_object(fd)) return KERROR_INVALID_OBJECT;
 	if(!is_valid_pointer(data,length)) return KERROR_INVALID_ADDRESS;
-
+	
 	struct kobject *p = current->ktable[fd];
-	return kobject_read(p, data, length, flags);
+	int bytes_read = kobject_read(p, data, length, flags);
+	// sprintf("   bytes_read: %d\n", bytes_read);
+	return bytes_read;
 }
 
 int sys_object_write(int fd, void *data, int length, kernel_io_flags_t flags )
 {
+	// printf("Starting to write\n");
 	if(!is_valid_object(fd)) return KERROR_INVALID_OBJECT;
 	if(!is_valid_pointer(data,length)) return KERROR_INVALID_ADDRESS;
-
+	// printf("object and pointer are valid\n");
 	struct kobject *p = current->ktable[fd];
+	// if(p) printf("retrieved kobject from the table\n");
+	// else printf("retrieved kobject is invalid\n");
 	return kobject_write(p, data, length, flags);
 }
 
@@ -595,6 +701,10 @@ int32_t syscall_handler(syscall_t n, uint32_t a, uint32_t b, uint32_t c, uint32_
 		return sys_open_window(a, b, c, d, e);
 	case SYSCALL_OPEN_CONSOLE:
 		return sys_open_console(a);
+	case SYSCALL_MAKE_NAMED_PIPE:
+		return sys_make_named_pipe((const char *) a, (const char *) b);
+	case SYSCALL_OPEN_NAMED_PIPE:
+		return sys_open_named_pipe((const char *) a, (const char *) b);
 	case SYSCALL_OPEN_PIPE:
 		return sys_open_pipe();
 	case SYSCALL_OBJECT_TYPE:
@@ -633,6 +743,8 @@ int32_t syscall_handler(syscall_t n, uint32_t a, uint32_t b, uint32_t c, uint32_
 		return sys_system_rtc((struct rtc_time *) a);
 	case SYSCALL_DEVICE_DRIVER_STATS:
 		return sys_device_driver_stats((char *) a, (struct device_driver_stats *) b);
+	case SYSCALL_PROCESS_WAKEUP:
+		return sys_process_wakeup();
 	default:
 		return KERROR_INVALID_SYSCALL;
 	}

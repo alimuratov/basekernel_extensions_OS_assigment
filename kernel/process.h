@@ -32,6 +32,7 @@ struct process {
 	int state;
 	int exitcode;
 	int exitreason;
+	int priority; //xxx
 	struct pagetable *pagetable;
 	char *kstack;
 	char *kstack_top;
@@ -47,7 +48,8 @@ struct process {
 
 void process_init();
 
-struct process *process_create();
+struct process *process_create(); 
+struct process *process_create_with_priority(int pr);
 void process_delete(struct process *p);
 void process_launch(struct process *p);
 void process_pass_arguments(struct process *p, int argc, char **argv);
@@ -70,9 +72,11 @@ void process_exit(int code);
 void process_dump(struct process *p);
 
 void process_wait(struct list *q);
+void process_wait_p(struct process *p);
 void process_wakeup(struct list *q);
 void process_wakeup_parent(struct list *q);
 void process_wakeup_all(struct list *q);
+void process_wakeup_waiting();
 void process_reap_all();
 
 int process_kill(uint32_t pid);

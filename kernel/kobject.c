@@ -12,8 +12,8 @@
 #include "device.h"
 #include "fs.h"
 #include "window.h"
-#include "console.h"
 #include "pipe.h"
+#include "named_pipe.h"
 
 #include "kernel/error.h"
 
@@ -72,6 +72,14 @@ struct kobject *kobject_create_pipe(struct pipe *p)
 	struct kobject *k = kobject_create();
 	k->type = KOBJECT_PIPE;
 	k->data.pipe = p;
+	return k;
+}
+
+/* Creates a kernel object encapsulating the named_pipe that is passed as an argument */
+struct kobject *kobject_create_named_pipe(struct named_pipe *p) {
+	struct kobject *k = kobject_create();
+	k->type = KOBJECT_NAMED_PIPE;
+	k->data.named_pipe = p;
 	return k;
 }
 
@@ -197,6 +205,10 @@ int kobject_read(struct kobject *kobject, void *buffer, int size, kernel_io_flag
 			actual = pipe_read(kobject->data.pipe, buffer, size);
 		}
 		break;
+	case KOBJECT_NAMED_PIPE:
+		actual = named_pipe_read(kobject->data.named_pipe, buffer,size, kobject->offset);
+		// printf("kobject_read actual: %d\n", actual);
+		break;
 	case KOBJECT_WINDOW:
 		if(flags&KERNEL_IO_NONBLOCK) {
 			actual = window_read_events_nonblock(kobject->data.window, buffer, size);
@@ -253,6 +265,14 @@ int kobject_write(struct kobject *kobject, void *buffer, int size, kernel_io_fla
 		} else {
 			return pipe_write(kobject->data.pipe, buffer, size);
 		}
+	case KOBJECT_NAMED_PIPE: {
+		int actual = named_pipe_write(kobject->data.named_pipe, buffer, size, kobject->offset);
+		//printf("Number of bytes written: %d\n", actual);
+		if(actual > 0)
+			kobject->offset += actual;
+		//printf("returning actual number of bytes written\n");
+		return actual;
+	}
 	default:
 		return 0;
 	}

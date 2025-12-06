@@ -1,0 +1,290 @@
+# 0 "process1.c"
+# 0 "<built-in>"
+# 0 "<command-line>"
+# 1 "/usr/include/stdc-predef.h" 1 3 4
+# 0 "<command-line>" 2
+# 1 "process1.c"
+# 1 "library/syscalls.h" 1
+# 10 "library/syscalls.h"
+# 1 "library/kernel/types.h" 1
+
+
+
+#pragma pack(2)
+# 19 "library/kernel/types.h"
+typedef long long int64_t;
+typedef int int32_t;
+typedef short int16_t;
+typedef char int8_t;
+
+typedef unsigned long long uint64_t;
+typedef unsigned int uint32_t;
+typedef unsigned short uint16_t;
+typedef unsigned char uint8_t;
+
+typedef uint8_t bool;
+
+typedef uint32_t addr_t;
+
+struct rtc_time {
+ uint8_t second;
+ uint8_t minute;
+ uint8_t hour;
+ uint8_t day;
+ uint8_t month;
+ uint16_t year;
+};
+
+struct process_info {
+ int pid;
+ int exitcode;
+ int exitreason;
+};
+
+typedef enum {
+ KOBJECT_FILE,
+ KOBJECT_DIR,
+ KOBJECT_DEVICE,
+ KOBJECT_WINDOW,
+ KOBJECT_PIPE,
+ KOBJECT_CONSOLE
+} kobject_type_t;
+
+typedef enum {
+ KERNEL_FLAGS_READ=0,
+ KERNEL_FLAGS_WRITE=1,
+ KERNEL_FLAGS_CREATE=2,
+ KERNEL_FLAGS_RANDOM=4,
+ KERNEL_FLAGS_DIRECT=8
+} kernel_flags_t;
+
+typedef enum {
+ KERNEL_IO_NONBLOCK=1,
+ KERNEL_IO_POST=2,
+ KERNEL_IO_DIRECT=4,
+} kernel_io_flags_t;
+# 11 "library/syscalls.h" 2
+# 1 "library/kernel/stats.h" 1
+
+
+
+# 1 "library/kernel/kernel/types.h" 1
+# 5 "library/kernel/stats.h" 2
+# 1 "library/kernel/kernel/syscall.h" 1
+# 10 "library/kernel/kernel/syscall.h"
+# 1 "library/kernel/kernel/kernel/types.h" 1
+# 11 "library/kernel/kernel/syscall.h" 2
+# 1 "library/kernel/kernel/kernel/error.h" 1
+
+
+
+# 1 "library/kernel/kernel/kernel/kernel/types.h" 1
+# 5 "library/kernel/kernel/kernel/error.h" 2
+
+typedef enum {
+ KERROR_NOT_FOUND = -1,
+ KERROR_INVALID_REQUEST = -2,
+ KERROR_PERMISSION_DENIED = -3,
+ KERROR_NOT_IMPLEMENTED = -4,
+ KERROR_NOT_EXECUTABLE = -5,
+ KERROR_EXECUTION_FAILED = -6,
+ KERROR_NOT_A_DIRECTORY = -7,
+ KERROR_NOT_A_FILE = -8,
+ KERROR_NOT_A_WINDOW = -9,
+ KERROR_NOT_A_DEVICE = -10,
+ KERROR_NOT_A_CONSOLE = -11,
+ KERROR_NOT_A_PIPE = -12,
+ KERROR_INVALID_SYSCALL = -13,
+ KERROR_INVALID_OBJECT = -14,
+ KERROR_INVALID_ADDRESS = -15,
+ KERROR_INVALID_PATH = -16,
+ KERROR_INVALID_TAG = -17,
+ KERROR_OUT_OF_MEMORY = -18,
+ KERROR_OUT_OF_OBJECTS = -19,
+ KERROR_OUT_OF_SPACE = -20,
+ KERROR_FILE_EXISTS = -21,
+ KERROR_NOT_EMPTY = -22,
+} kernel_error_t;
+# 12 "library/kernel/kernel/syscall.h" 2
+
+typedef enum {
+ SYSCALL_DEBUG,
+ SYSCALL_PROCESS_YIELD,
+ SYSCALL_PROCESS_EXIT,
+ SYSCALL_PROCESS_RUN,
+ SYSCALL_PROCESS_WRUN,
+ SYSCALL_PROCESS_FORK,
+ SYSCALL_PROCESS_EXEC,
+ SYSCALL_PROCESS_SELF,
+ SYSCALL_PROCESS_PARENT,
+ SYSCALL_PROCESS_KILL,
+ SYSCALL_PROCESS_REAP,
+ SYSCALL_PROCESS_WAIT,
+ SYSCALL_PROCESS_SLEEP,
+ SYSCALL_PROCESS_STATS,
+ SYSCALL_PROCESS_HEAP,
+ SYSCALL_OPEN_FILE,
+ SYSCALL_OPEN_DIR,
+ SYSCALL_OPEN_WINDOW,
+ SYSCALL_OPEN_CONSOLE,
+ SYSCALL_OPEN_PIPE,
+ SYSCALL_OBJECT_TYPE,
+ SYSCALL_OBJECT_COPY,
+ SYSCALL_OBJECT_READ,
+ SYSCALL_OBJECT_LIST,
+ SYSCALL_OBJECT_WRITE,
+ SYSCALL_OBJECT_SEEK,
+ SYSCALL_OBJECT_SIZE,
+ SYSCALL_OBJECT_REMOVE,
+ SYSCALL_OBJECT_CLOSE,
+ SYSCALL_OBJECT_STATS,
+ SYSCALL_OBJECT_SET_TAG,
+ SYSCALL_OBJECT_GET_TAG,
+ SYSCALL_OBJECT_MAX,
+ SYSCALL_SYSTEM_STATS,
+ SYSCALL_BCACHE_STATS,
+ SYSCALL_BCACHE_FLUSH,
+ SYSCALL_SYSTEM_TIME,
+ SYSCALL_SYSTEM_RTC,
+ SYSCALL_DEVICE_DRIVER_STATS,
+ MAX_SYSCALL
+} syscall_t;
+
+uint32_t syscall(syscall_t s, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e);
+# 6 "library/kernel/stats.h" 2
+
+struct system_stats {
+ int time;
+ int blocks_read[4];
+ int blocks_written[4];
+};
+
+struct device_driver_stats {
+ int blocks_written;
+ int blocks_read;
+};
+
+struct bcache_stats {
+ int read_hits;
+ int read_misses;
+ int write_hits;
+ int write_misses;
+ int writebacks;
+};
+
+struct process_stats {
+ int blocks_read;
+ int blocks_written;
+ int bytes_read;
+ int bytes_written;
+ int syscall_count[MAX_SYSCALL];
+};
+# 12 "library/syscalls.h" 2
+
+void syscall_debug(const char *str);
+
+
+
+void syscall_process_exit(int status);
+int syscall_process_yield();
+int syscall_process_run(int fd, int argc, const char **argv);
+int syscall_process_wrun(int fd, int argc, const char **argv, int * fds, int fd_len);
+int syscall_process_fork();
+int syscall_process_exec(int fd, int argc, const char **argv);
+int syscall_process_self();
+int syscall_process_parent();
+int syscall_process_kill(unsigned int pid);
+int syscall_process_reap(unsigned int pid);
+int syscall_process_wait(struct process_info *info, int timeout);
+int syscall_process_sleep(unsigned int ms);
+int syscall_process_stats(struct process_stats *s, unsigned int pid);
+extern void *syscall_process_heap(int a);
+
+
+
+int syscall_open_file(int fd, const char *path, int mode, kernel_flags_t flags);
+int syscall_open_dir( int fd, const char *path, kernel_flags_t flags );
+int syscall_open_window(int fd, int x, int y, int w, int h);
+int syscall_open_console(int fd);
+int syscall_open_pipe();
+
+
+
+int syscall_object_type(int fd);
+int syscall_object_copy( int src, int dst );
+int syscall_object_read(int fd, void *data, int length, kernel_io_flags_t flags );
+int syscall_object_list( int fd, char *buffer, int buffer_len);
+int syscall_object_write(int fd, const void *data, int length, kernel_io_flags_t flags );
+int syscall_object_seek(int fd, int offset, int whence);
+int syscall_object_size(int fd, int * dims, int n);
+int syscall_object_remove( int fd, const char *name );
+int syscall_object_close(int fd);
+int syscall_object_set_tag(int fd, char *tag);
+int syscall_object_get_tag(int fd, char *buffer, int buffer_size);
+int syscall_object_max();
+
+
+
+int syscall_system_stats(struct system_stats *s);
+int syscall_bcache_stats(struct bcache_stats *s);
+
+int syscall_bcache_flush();
+
+int syscall_system_time( uint32_t *t );
+int syscall_system_rtc( struct rtc_time *t );
+
+int syscall_device_driver_stats(char * name, struct device_driver_stats * stats);
+# 2 "process1.c" 2
+# 1 "library/string.h" 1
+# 12 "library/string.h"
+void strcpy(char *d, const char *s);
+void strncpy(char *d, const char *s, unsigned length);
+char * strdup(const char *s);
+int strcmp(const char *a, const char *b);
+int strncmp(const char *a, const char *b, unsigned length);
+char *strdup(const char *s);
+unsigned strlen(const char *s);
+char *strcat(char *d, const char *s);
+char *uint_to_string(uint32_t u, char *str);
+char *strrev(char *s);
+
+char *strtok(char *s, const char *delim);
+
+int str2int(const char *s, int *d);
+
+const char *strchr(const char *s, char ch);
+
+void memset(void *d, char value, unsigned length);
+void memcpy(void *d, const void *s, unsigned length);
+
+void printf(const char *s, ...);
+# 3 "process1.c" 2
+# 1 "library/stdio.h" 1
+# 12 "library/stdio.h"
+void printf_putchar(char c);
+void printf_putstring(char *s);
+void flush();
+
+void draw_window(int wd);
+void draw_fgcolor(int r, int g, int b);
+void draw_bgcolor(int r, int g, int b);
+void draw_rect(int x, int y, int w, int h);
+void draw_clear(int x, int y, int w, int h);
+void draw_line(int x, int y, int w, int h);
+void draw_char(int x, int y, char c);
+void draw_string(int x, int y, const char *s);
+void draw_flush();
+
+char window_getchar( int blocking );
+# 4 "process1.c" 2
+# 1 "library/kernel_object_string.h" 1
+
+
+
+const char *kernel_object_string( kobject_type_t type );
+# 5 "process1.c" 2
+# 1 "library/nwindow.h" 1
+
+
+
+# 1 "library/kernel/events.h" 1

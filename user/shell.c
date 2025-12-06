@@ -73,19 +73,16 @@ int do_command(char *line)
 		if(pch) {
 			const char *argv[20];
 			argv[0] = pch;
-			int i = 1;
-			char *next;
-			while((next = strtok(0, " "))) {
-				argv[i++] = next;
-			}
+			argv[1] = "9";
+			int i = 2;
 			int fd = syscall_open_file(KNO_STDDIR,argv[0],0,0);
 			if(fd>=0) {
-				int pid = syscall_process_run(fd, i,  &argv[0]);
+				int pid = syscall_process_run(fd, i, argv); //changed
 				if(pid > 0) {
 					printf("started process %d\n", pid);
-					syscall_process_yield();
+					// syscall_process_yield();
 					struct process_info info;
-					syscall_process_wait(&info, -1);
+					// syscall_process_wait(&info, 0); //-1 to 0 changed xxx
 					printf("process %d exited with status %d\n", info.pid, info.exitcode);
 					syscall_process_reap(info.pid);
 				} else {
