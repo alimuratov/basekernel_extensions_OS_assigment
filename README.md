@@ -1,2 +1,3 @@
 This repository contains our CS3103 Project B implementation for the teaching OS basekernel. It extends the kernel with priority-based scheduling (processes created with explicit priorities, maintained in a priority-ordered waiting list and woken into the ready list by schedulertest) and a filesystem-backed named pipe mechanism, where unrelated processes communicate via per-process kernel objects referencing shared fs_dirent entries. The repo includes all kernel changes, user-space test programs, and instructions for building and running the system in QEMU. 
 
+For the detailed explanation of the solution, please refer to the Assignment-Report.pdf
